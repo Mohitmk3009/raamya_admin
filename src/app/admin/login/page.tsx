@@ -10,17 +10,26 @@ export default function AdminLoginPage() {
     const router = useRouter();
     const { login } = useAuth();
 
-    const handleChange = (e:any) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    // FIX 1: Changed 'any' to the specific event type for an input element.
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
 
-    const handleSubmit = async (e:any) => {
+    // FIX 2: Changed 'any' to the specific event type for a form element.
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
             await login(formData.email, formData.password);
             router.push('/admin/dashboard'); // Redirect on success
-        } catch (err:any) {
-            setError(err.message);
+        } catch (err: unknown) { // FIX 3: Changed 'any' to 'unknown' for better type safety.
+            // Check if the error is an actual Error object before accessing .message
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('An unexpected error occurred.');
+            }
         } finally {
             setLoading(false);
         }
