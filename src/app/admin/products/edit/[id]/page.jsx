@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ProductForm from '../../../components/ProductForm'; // Adjust path for nested folder
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const EditProductPage = () => {
     const router = useRouter();
     const params = useParams();
@@ -12,7 +12,7 @@ const EditProductPage = () => {
     useEffect(() => {
         if (id) {
             const fetchProduct = async () => {
-                const res = await fetch(`http://localhost:5001/api/products/${id}`);
+                const res = await fetch(`${API_BASE_URL}/products/${id}`);
                 const data = await res.json();
                 // Map backend data to frontend form state
                 setProduct({
@@ -31,7 +31,7 @@ const EditProductPage = () => {
     const handleUpdate = async (formData) => {
         const token = localStorage.getItem('authToken');
         try {
-            const res = await fetch(`http://localhost:5001/api/products/${id}`, {
+            const res = await fetch(`${API_BASE_URL}/products/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(formData),
