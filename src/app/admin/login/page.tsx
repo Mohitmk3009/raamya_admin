@@ -10,16 +10,16 @@ export default function AdminLoginPage() {
     const router = useRouter();
     const { login } = useAuth();
 
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleChange = (e:any) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e:any) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
             await login(formData.email, formData.password);
             router.push('/admin/dashboard'); // Redirect on success
-        } catch (err) {
+        } catch (err:any) {
             setError(err.message);
         } finally {
             setLoading(false);
