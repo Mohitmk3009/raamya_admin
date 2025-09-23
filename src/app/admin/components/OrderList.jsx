@@ -22,6 +22,7 @@ const OrderList = ({ onOrderClick }) => {
     useEffect(() => {
         const fetchOrders = async () => {
             setLoading(true);
+            setError(''); // Reset error on new fetch
             const token = localStorage.getItem('authToken');
             const params = new URLSearchParams({ pageNumber: currentPage });
             if (dateRange.startDate && dateRange.endDate) {
@@ -32,8 +33,9 @@ const OrderList = ({ onOrderClick }) => {
                 const res = await fetch(`${API_BASE_URL}/orders/all?${params.toString()}`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                 });
-                if (!res.ok) throw new Error('Failed to fetch orders');
+                if (!res.ok) throw new Error('Failed to fetch orders. Please check if the server is running and the API endpoint is correct.');
                 const data = await res.json();
+                console.log('Fetched orders:', data.orders); // Debug log
                 setOrders(data.orders);
                 setCurrentPage(data.page);
                 setTotalPages(data.pages);
@@ -45,11 +47,25 @@ const OrderList = ({ onOrderClick }) => {
         };
         fetchOrders();
     }, [currentPage, dateRange]);
+    
+    // --- 👇 NEW: Helper function for status logic 👇 ---
+    const getStatus = (order) => {
+        if (order.hasExchangeRequest) {
+            return { text: 'Exchange Requested', className: 'bg-purple-500/20 text-purple-400' };
+        }
+        switch (order.status) {
+            case 'Cancelled': return { text: 'Cancelled', className: 'bg-red-500/20 text-red-400' };
+            case 'Delivered': return { text: 'Delivered', className: 'bg-green-500/20 text-green-400' };
+            case 'Shipped': return { text: 'Shipped', className: 'bg-blue-500/20 text-blue-400' };
+            case 'Processing':
+            default:
+                return { text: 'Processing', className: 'bg-yellow-500/20 text-yellow-400' };
+        }
+    };
 
     const handleFilterApply = () => {
-        setCurrentPage(1); // Reset to first page when applying filter
+        setCurrentPage(1);
         setShowCalendar(false);
-        // The useEffect will automatically refetch with the new dateRange
     };
     
     const resetFilters = () => {
@@ -70,8 +86,8 @@ const OrderList = ({ onOrderClick }) => {
                     {showCalendar && (
                         <div ref={calendarRef} className="absolute top-12 right-0 z-10 bg-[#2C2C2C] p-4 rounded-lg shadow-lg">
                             <div className="flex flex-col space-y-2">
-                                <label className="text-sm">Start Date</label><input type="date" className="bg-[#1C1C1C] p-2 rounded" onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} />
-                                <label className="text-sm">End Date</label><input type="date" className="bg-[#1C1C1C] p-2 rounded" onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} />
+                                <label className="text-sm">Start Date</label><input type="date" value={dateRange.startDate} className="bg-[#1C1C1C] p-2 rounded" onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} />
+                                <label className="text-sm">End Date</label><input type="date" value={dateRange.endDate} className="bg-[#1C1C1C] p-2 rounded" onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} />
                                 <button onClick={handleFilterApply} className="bg-[#FF9900] text-black px-4 py-2 rounded-md text-sm font-semibold mt-2">Apply</button>
                             </div>
                         </div>
@@ -93,19 +109,22 @@ const OrderList = ({ onOrderClick }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {orders.map((order) => (
+                            {orders.map((order) => {
+                                const status = getStatus(order); // --- 👈 Use the helper function
+                                return (
                                 <tr key={order._id} className="cursor-pointer hover:bg-[#2C2C2C]" onClick={() => onOrderClick(order._id)}>
                                     <td className="py-4 px-2 text-sm">{order._id}</td>
                                     <td className="py-4 px-2 text-sm">{new Date(order.createdAt).toLocaleDateString()}</td>
-                                    <td className="py-4 px-2 text-sm">{order.user.name}</td>
+                                    <td className="py-4 px-2 text-sm">{order.user?.name || 'N/A'}</td>
                                     <td className="py-4 px-2 text-sm">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${order.isDelivered ? 'bg-[#1C3224] text-[#4AD379]' : 'bg-[#3A241C] text-[#FF9900]'}`}>
-                                            {order.isDelivered ? 'Delivered' : 'Processing'}
+                                        {/* --- 👇 UPDATED STATUS DISPLAY 👇 --- */}
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status.className}`}>
+                                            {status.text}
                                         </span>
                                     </td>
-                                    <td className="py-4 px-2 text-sm">₹{order.totalPrice.toLocaleString()}</td>
+                                    <td className="py-4 px-2 text-sm">₹{(order.totalPrice || 0).toLocaleString()}</td>
                                 </tr>
-                            ))}
+                            )})}
                         </tbody>
                     </table>
                 </div>
