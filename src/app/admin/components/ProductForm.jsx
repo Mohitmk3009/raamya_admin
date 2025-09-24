@@ -12,6 +12,7 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
         variants: [{ size: 'S', stock: '' }],
         images: [''],
         isNewArrival: false,
+        isMostWanted: false,
         isSuggested: false, // FIX: Corrected state field name
         suggestedItems: [],
     });
@@ -47,6 +48,7 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
                 variants: initialProduct.variants || [{ size: 'S', stock: '' }],
                 images: initialProduct.images || [''],
                 isNewArrival: initialProduct.isNewArrival || false,
+                isMostWanted: initialProduct.isMostWanted || false,
                 isSuggested: initialProduct.isSuggested || false, // FIX: Corrected field name
                 suggestedItems: initialProduct.suggestedItems || [],
             });
@@ -61,13 +63,13 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
     };
     const addVariant = () => setFormData(prev => ({ ...prev, variants: [...prev.variants, { size: 'M', stock: '' }] }));
     const removeVariant = (index) => setFormData(prev => ({ ...prev, variants: prev.variants.filter((_, i) => i !== index) }));
-    
+
     const handleImageChange = (index, e) => {
         const newImages = [...formData.images];
         newImages[index] = e.target.value;
-        setFormData(prev => ({ ...prev, images: newImages}));
+        setFormData(prev => ({ ...prev, images: newImages }));
     };
-    const addImageField = () => setFormData(prev => ({...prev, images: [...prev.images, '']}));
+    const addImageField = () => setFormData(prev => ({ ...prev, images: [...prev.images, ''] }));
 
     const removeImageField = (index) => {
         const newImages = formData.images.filter((_, i) => i !== index);
@@ -79,31 +81,32 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
         setFormData(prev => ({ ...prev, suggestedItems: selectedOptions }));
     };
 
-   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
 
-    const dataToSubmit = {
-        productName: formData.productName,
-        description: formData.description,
-        category: formData.category,
-        regularPrice: Number(formData.regularPrice),
-        isNewArrival: formData.isNewArrival, 
-        isSuggested: formData.isSuggested, // FIX: Corrected field name
-        variants: formData.variants.map(v => ({ ...v, stock: Number(v.stock) })),
-        images: formData.images.filter(img => img && img.trim() !== ''),
-        suggestedItems: formData.suggestedItems,
+        const dataToSubmit = {
+            productName: formData.productName,
+            description: formData.description,
+            category: formData.category,
+            regularPrice: Number(formData.regularPrice),
+            isNewArrival: formData.isNewArrival,
+            isMostWanted: formData.isMostWanted,
+            isSuggested: formData.isSuggested, // FIX: Corrected field name
+            variants: formData.variants.map(v => ({ ...v, stock: Number(v.stock) })),
+            images: formData.images.filter(img => img && img.trim() !== ''),
+            suggestedItems: formData.suggestedItems,
+        };
+
+        try {
+            await onSubmit(dataToSubmit);
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            setLoading(false);
+        }
     };
-    
-    try {
-        await onSubmit(dataToSubmit);
-    } catch (error) {
-        alert(error.message);
-    } finally {
-        setLoading(false);
-    }
-};
-    
+
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -171,6 +174,10 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
                                 <div className="flex items-center gap-2">
                                     <input type="checkbox" id="isSuggested" name="isSuggested" checked={formData.isSuggested} onChange={(e) => setFormData(prev => ({ ...prev, isSuggested: e.target.checked }))} className="form-checkbox h-5 w-5 text-yellow-400 bg-gray-700 border-gray-600 rounded" />
                                     <label htmlFor="isSuggested" className="text-white">Mark as a Suggestion</label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input type="checkbox" id="isMostWanted" name="isMostWanted" checked={formData.isMostWanted} onChange={(e) => setFormData(prev => ({ ...prev, isMostWanted: e.target.checked }))} className="form-checkbox h-5 w-5 text-yellow-400 bg-gray-700 border-gray-600 rounded" />
+                                    <label htmlFor="isMostWanted">Mark as Most Wanted</label>
                                 </div>
                             </div>
                             <div>
