@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import toast from 'react-hot-toast';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const OrderDetailsPage = () => {
@@ -41,7 +43,6 @@ const OrderDetailsPage = () => {
             case 'Shipped': return { text: 'Shipped', className: 'bg-blue-500/20 text-blue-400' };
             case 'Delivered': return { text: 'Delivered', className: 'bg-green-500/20 text-green-400' };
             case 'Cancelled': return { text: 'Cancelled', className: 'bg-red-500/20 text-red-400' };
-            // Exchange Statuses
             case 'Pending': return { text: 'Pending', className: 'bg-gray-500/20 text-gray-400' };
             case 'Approved': return { text: 'Approved', className: 'bg-green-500/20 text-green-400' };
             case 'Rejected': return { text: 'Rejected', className: 'bg-red-500/20 text-red-400' };
@@ -78,6 +79,49 @@ const OrderDetailsPage = () => {
             }
         }
     };
+
+    const handleDownloadBill = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${API_BASE_URL}/orders/${orderId}/generate-bill`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+
+            if (!res.ok) {
+                // If the response is an error, it might be JSON, so we handle it separately.
+                // It's a good practice to first check the Content-Type.
+                const contentType = res.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.message || 'Failed to download bill.');
+                } else {
+                    throw new Error('Failed to download bill. Server returned an unexpected response.');
+                }
+            }
+            
+            // CORRECT WAY: Get the PDF as a blob, not JSON
+            const blob = await res.blob();
+            
+            // Create a temporary link to download the blob
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Raamya-E-Bill-${orderId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success("Bill downloaded successfully!");
+
+        } catch (err) {
+            toast.error(`Error: ${err.message}`);
+            console.error(err);
+        }
+    };
+    
+    // Calculate subtotal from order items
+    const subtotal = order?.orderItems?.reduce((acc, item) => acc + (item.price * item.qty), 0) || 0;
+   
 
     if (loading) return <div className="p-10 text-center">Loading order details...</div>;
     if (error) return <div className="p-10 text-center text-red-500">Error: {error}</div>;
@@ -165,11 +209,9 @@ const OrderDetailsPage = () => {
                                 <p className="text-gray-400">
                                     Reason: <span className="text-gray-200">{order.exchangeRequest.reason}</span>
                                 </p>
-
                             </div>
-
                             {order.exchangeRequest.imageUrl && (
-                                <div className=" flex flex-col items-start">
+                                <div className="flex flex-col items-start">
                                     <p className="text-gray-400 text-sm mb-2 font-semibold">Attached Image:</p>
                                     <a href={order.exchangeRequest.imageUrl} target="_blank" rel="noopener noreferrer">
                                         <Image src={order.exchangeRequest.imageUrl} alt="Exchange request attachment" width={100} height={100} className="rounded-md object-cover hover:opacity-80 transition-opacity" />
@@ -177,8 +219,6 @@ const OrderDetailsPage = () => {
                                 </div>
                             )}
                         </div>
-
-
                         {order.exchangeRequest.status === 'Pending' && (
                             <div className="mt-4 pt-4 border-t border-[#3A3A3A] flex gap-2">
                                 <button onClick={() => handleStatusUpdate('Approved', order.exchangeRequest._id)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-xs font-semibold w-full">Approve</button>
@@ -190,7 +230,12 @@ const OrderDetailsPage = () => {
             </section>
 
             <section className="bg-[#1C1C1C] rounded-lg p-4 md:p-6 border border-[#3A3A3A]">
-                <h3 className="text-xl font-bold mb-4">Products</h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold">Products</h3>
+                    <button onClick={handleDownloadBill} className="bg-[#FF9900] text-black px-4 py-2 rounded-md text-sm font-semibold hover:bg-yellow-600 transition-colors">
+                        Download Bill
+                    </button>
+                </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
@@ -221,11 +266,11 @@ const OrderDetailsPage = () => {
                     <div className="w-full max-w-sm space-y-2 text-gray-300">
                         <div className="flex justify-between">
                             <span className="text-gray-400">Subtotal</span>
-                            <span>₹{(order.itemsPrice || 0).toLocaleString()}</span>
+                            <span>&#8377;{subtotal.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-gray-400">Tax ({order.taxRate || 20}%)</span>
-                            <span>₹{(order.taxPrice || 0).toLocaleString()}</span>
+                            <span className="text-gray-400 text-xs">Including Gst</span>
+                           
                         </div>
                         <div className="flex justify-between">
                             <span className="text-gray-400">Shipping</span>

@@ -15,14 +15,7 @@ const EditProductPage = () => {
                 const res = await fetch(`${API_BASE_URL}/products/${id}`);
                 const data = await res.json();
                 // Map backend data to frontend form state
-                setProduct({
-                    productName: data.name,
-                    regularPrice: data.price,
-                    description: data.description,
-                    images: data.images,
-                    category: data.category,
-                    variants: data.variants || [{ size: 'S', stock: '' }],
-                });
+                setProduct(data); 
             };
             fetchProduct();
         }

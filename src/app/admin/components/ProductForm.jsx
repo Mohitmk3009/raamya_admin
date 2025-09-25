@@ -4,17 +4,20 @@ import Link from 'next/link';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
+    console.log("ProductForm received this 'initialProduct' prop:", initialProduct);
     const [formData, setFormData] = useState({
-        productName: '',
+        // Corrected state keys to match backend schema
+        name: '',
         description: '',
         category: 'IT girl',
-        regularPrice: '',
+        price: '',
         variants: [{ size: 'S', stock: '' }],
         images: [''],
         isNewArrival: false,
         isMostWanted: false,
-        isSuggested: false, // FIX: Corrected state field name
+        isSuggested: false,
         suggestedItems: [],
+        companyId: '',
     });
     const [loading, setLoading] = useState(false);
     const [allProducts, setAllProducts] = useState([]);
@@ -28,6 +31,7 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
                     throw new Error('Failed to fetch all products.');
                 }
                 const data = await response.json();
+                // console.log('Fetched products for suggestions:', data.products);
                 setAllProducts(data.products);
                 setInitialLoading(false);
             } catch (error) {
@@ -38,24 +42,37 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
         fetchAllProducts();
     }, []);
 
+
     useEffect(() => {
-        if (initialProduct && !initialLoading) {
-            setFormData({
-                productName: initialProduct.name || '',
+        if (initialProduct) {
+            // Use the functional update form to merge with the previous state
+            setFormData(prevFormData => ({
+                ...prevFormData, // <-- This is the key change!
+                name: initialProduct.name || '',
+                price: initialProduct.price ? String(initialProduct.price) : '',
+                companyId: initialProduct.companyId || '',
                 description: initialProduct.description || '',
                 category: initialProduct.category || 'IT girl',
-                regularPrice: initialProduct.price || '',
-                variants: initialProduct.variants || [{ size: 'S', stock: '' }],
-                images: initialProduct.images || [''],
-                isNewArrival: initialProduct.isNewArrival || false,
-                isMostWanted: initialProduct.isMostWanted || false,
-                isSuggested: initialProduct.isSuggested || false, // FIX: Corrected field name
-                suggestedItems: initialProduct.suggestedItems || [],
-            });
+                variants: initialProduct.variants?.length > 0
+                    ? initialProduct.variants.map(v => ({
+                        size: v.size || 'S',
+                        stock: v.stock?.toString() || '0',
+                        sku: v.sku || '' // preserve sku
+                    }))
+                    : [{ size: 'S', stock: '', sku: '' }],
+                images: initialProduct.images?.length > 0 ? initialProduct.images : [''],
+                isNewArrival: !!initialProduct.isNewArrival,
+                isMostWanted: !!initialProduct.isMostWanted,
+                isSuggested: !!initialProduct.isSuggested,
+                suggestedItems: initialProduct.suggestedItems?.map(i => i._id || i) || [],
+            }));
         }
-    }, [initialProduct, initialLoading]);
+    }, [initialProduct]);
+
+    // console.log("Form Data State:", formData);
 
     const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
     const handleVariantChange = (index, e) => {
         const newVariants = [...formData.variants];
         newVariants[index][e.target.name] = e.target.value;
@@ -76,28 +93,38 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
         setFormData(prev => ({ ...prev, images: newImages.length > 0 ? newImages : [''] }));
     };
 
-    const handleSuggestedItemsChange = (e) => {
-        const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
-        setFormData(prev => ({ ...prev, suggestedItems: selectedOptions }));
-    };
+    const handleSuggestedItemToggle = (productId) => {
+    setFormData(prev => {
+        const newSuggestedItems = prev.suggestedItems.includes(productId)
+            ? prev.suggestedItems.filter(id => id !== productId) // Uncheck: Remove the ID
+            : [...prev.suggestedItems, productId];              // Check: Add the ID
+        return { ...prev, suggestedItems: newSuggestedItems };
+    });
+};
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
         const dataToSubmit = {
-            productName: formData.productName,
+            companyId: formData.companyId,
+            name: formData.name,
             description: formData.description,
             category: formData.category,
-            regularPrice: Number(formData.regularPrice),
-            isNewArrival: formData.isNewArrival,
-            isMostWanted: formData.isMostWanted,
-            isSuggested: formData.isSuggested, // FIX: Corrected field name
-            variants: formData.variants.map(v => ({ ...v, stock: Number(v.stock) })),
-            images: formData.images.filter(img => img && img.trim() !== ''),
-            suggestedItems: formData.suggestedItems,
+            price: Number(formData.price),
+            variants: formData.variants.map(v => ({ // <-- Modify this part
+                size: v.size,
+                stock: Number(v.stock),
+                sku: v.sku || undefined, // Include existing SKU if it exists
+            })),
+            images: formData.images.filter(img => img.trim() !== ''),
+            isNewArrival: !!formData.isNewArrival,
+            isMostWanted: !!formData.isMostWanted,
+            isSuggested: !!formData.isSuggested,
+            suggestedItems: formData.suggestedItems || [],
         };
 
+        // console.log("Submitting payload for update:", dataToSubmit); // Good for debugging
         try {
             await onSubmit(dataToSubmit);
         } catch (error) {
@@ -106,6 +133,8 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
             setLoading(false);
         }
     };
+
+
 
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
@@ -129,8 +158,12 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-4 bg-[#1C1C1C] p-6 rounded-lg border border-[#3A3A3A]">
                         <div>
-                            <label htmlFor="productName" className="block text-sm font-medium text-gray-400">Product Name</label>
-                            <input type="text" id="productName" name="productName" value={formData.productName} onChange={handleChange} required className="mt-1 block w-full bg-[#2C2C2C] border-2 border-[#3A3A3A] rounded-md py-2 px-3 text-white focus:outline-none" />
+                            <label htmlFor="companyId" className="block text-sm font-medium text-gray-400">Company ID</label>
+                            <input type="text" id="companyId" name="companyId" value={formData.companyId} onChange={handleChange} required className="mt-1 block w-full bg-[#2C2C2C] border-2 border-[#3A3A3A] rounded-md py-2 px-3 text-white focus:outline-none" />
+                        </div>
+                        <div>
+                            <label htmlFor="name" className="block text-sm font-medium text-gray-400">Product Name</label>
+                            <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full bg-[#2C2C2C] border-2 border-[#3A3A3A] rounded-md py-2 px-3 text-white focus:outline-none" />
                         </div>
                         <div>
                             <label htmlFor="description" className="block text-sm font-medium text-gray-400">Description</label>
@@ -138,8 +171,8 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="regularPrice" className="block text-sm font-medium text-gray-400">Regular Price</label>
-                                <input type="number" id="regularPrice" name="regularPrice" value={formData.regularPrice} onChange={handleChange} required className="mt-1 block w-full bg-[#2C2C2C] border-2 border-[#3A3A3A] rounded-md py-2 px-3 text-white focus:outline-none" />
+                                <label htmlFor="price" className="block text-sm font-medium text-gray-400">Regular Price</label>
+                                <input type="number" id="price" name="price" value={formData.price} onChange={handleChange} required className="mt-1 block w-full bg-[#2C2C2C] border-2 border-[#3A3A3A] rounded-md py-2 px-3 text-white focus:outline-none" />
                             </div>
                             <div>
                                 <label htmlFor="category" className="block text-sm font-medium text-gray-400">Category</label>
@@ -180,24 +213,25 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
                                     <label htmlFor="isMostWanted">Mark as Most Wanted</label>
                                 </div>
                             </div>
-                            <div>
-                                <label htmlFor="suggestedItems" className="block text-sm font-medium text-gray-400 mb-1">Suggested Items (Optional)</label>
-                                <p className="text-xs text-gray-500 mb-2">Select products to suggest on this product's page. Hold down `Ctrl` (or `Cmd` on Mac) to select multiple items.</p>
-                                <select
-                                    multiple
-                                    id="suggestedItems"
-                                    name="suggestedItems"
-                                    value={formData.suggestedItems}
-                                    onChange={handleSuggestedItemsChange}
-                                    className="mt-1 block w-full bg-[#2C2C2C] border-2 border-[#3A3A3A] rounded-md py-2 px-3 text-white focus:outline-none"
-                                    style={{ minHeight: '150px' }}
-                                >
+                            {/* Suggested Items Checkbox List */}
+                            <div className="mt-1 max-h-60 w-full overflow-y-auto rounded-md border-2 border-[#3A3A3A] bg-[#2C2C2C] p-2">
+                                <div className="space-y-2">
                                     {allProducts.map(product => (
-                                        <option key={product._id} value={product._id}>
-                                            {product.name}
-                                        </option>
+                                        // Using a label makes the entire row clickable
+                                        <label
+                                            key={product._id}
+                                            className="flex cursor-pointer items-center rounded-md p-2 transition-colors hover:bg-[#3A3A3A]"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.suggestedItems.includes(product._id)}
+                                                onChange={() => handleSuggestedItemToggle(product._id)}
+                                                className="form-checkbox mr-3 h-5 w-5 rounded border-gray-600 bg-gray-700 text-yellow-400 focus:ring-yellow-500"
+                                            />
+                                            <span className="text-white">{product.name}</span>
+                                        </label>
                                     ))}
-                                </select>
+                                </div>
                             </div>
                         </div>
                     </div>
