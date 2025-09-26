@@ -69,9 +69,15 @@ interface SalesChartProps {
     data: SalesDataPoint[];
 }
 
+// FIX: Define the payload's shape directly inside the interface.
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: Payload<number, string>[];
+  // This is an array of objects provided by Recharts.
+  // We only care about the 'value' and 'name' properties for this component.
+  payload?: {
+      name: string;
+      value: number;
+  }[];
   label?: string;
 }
 const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
