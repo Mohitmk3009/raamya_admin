@@ -1,8 +1,43 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { useRouter } from 'next/navigation'; 
-// --- Reusable Icon Components ---
+import type { TooltipProps } from 'recharts'; // Import types from recharts
+import { useRouter } from 'next/navigation';
+
+// --- Type Definitions for API Data and Component Props ---
+interface SalesDataPoint {
+    name: string;
+    sales: number;
+}
+
+interface BestSeller {
+    img: string;
+    name: string;
+    sales: number;
+    price: string;
+}
+
+interface RecentOrder {
+    _id: string;
+    createdAt: string;
+    user: {
+        name: string;
+    };
+    totalPrice: number;
+    status: 'Delivered' | 'Cancelled' | 'Processing' | 'Shipped';
+    exchangeRequest?: { // Optional property
+        status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+    };
+}
+
+interface DashboardStats {
+    totalOrders: { value: number; count: number };
+    activeOrders: { count: number };
+    completedOrders: { count: number };
+    exchangedOrders: { count: number };
+}
+
+// --- Reusable Icon Components (Unchanged) ---
 const TotalOrdersIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-white">
         <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2" /><path d="M21 16.5V14a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 14v2.5" /><path d="M3.27 6.96 12 12.01l8.73-5.05" /><line x1="12" x2="12" y1="22.08" y2="12" />
@@ -30,13 +65,18 @@ const CalendarIcon = () => (
 );
 
 // --- Sales Chart Component ---
-const SalesChart = ({ data }) => {
-    const CustomTooltip = ({ active, payload, label }) => {
+interface SalesChartProps {
+    data: SalesDataPoint[];
+}
+
+const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
+    // Correctly type the props for the custom tooltip component
+    const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
         if (active && payload && payload.length) {
             return (
                 <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm">
                     <p className="label text-white font-bold">{`${label}`}</p>
-                    <p className="intro text-[#EFAF00]">{`Sales : ₹${payload[0].value.toLocaleString()}`}</p>
+                    <p className="intro text-[#EFAF00]">{`Sales : ₹${payload[0].value?.toLocaleString()}`}</p>
                 </div>
             );
         }
@@ -62,19 +102,20 @@ const SalesChart = ({ data }) => {
 // --- Main Dashboard Component ---
 const DashboardPage = () => {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-    const [stats, setStats] = useState(null);
-    const [bestSellers, setBestSellers] = useState([]);
-    const [recentOrders, setRecentOrders] = useState([]);
-    const [salesData, setSalesData] = useState([]);
+    // Add explicit types to your state hooks
+    const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [bestSellers, setBestSellers] = useState<BestSeller[]>([]);
+    const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+    const [salesData, setSalesData] = useState<SalesDataPoint[]>([]);
     const [salesPeriod, setSalesPeriod] = useState('monthly');
     const [loading, setLoading] = useState(true);
- const router = useRouter();
+    const router = useRouter();
+
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             const token = localStorage.getItem('authToken');
             if (!token) {
-                // Handle user not logged in, e.g., redirect to login page
                 setLoading(false);
                 return;
             }
@@ -88,12 +129,13 @@ const DashboardPage = () => {
                 ]);
 
                 if (!statsRes.ok || !sellersRes.ok || !ordersRes.ok) {
-                   throw new Error('Failed to fetch dashboard data');
+                    throw new Error('Failed to fetch dashboard data');
                 }
 
-                const statsData = await statsRes.json();
-                const sellersData = await sellersRes.json();
-                const ordersData = await ordersRes.json();
+                // TypeScript now knows the shape of this data
+                const statsData: DashboardStats = await statsRes.json();
+                const sellersData: BestSeller[] = await sellersRes.json();
+                const ordersData: RecentOrder[] = await ordersRes.json();
 
                 setStats(statsData);
                 setBestSellers(sellersData);
@@ -118,9 +160,9 @@ const DashboardPage = () => {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                  if (!res.ok) {
-                   throw new Error('Failed to fetch sales data');
+                    throw new Error('Failed to fetch sales data');
                 }
-                const data = await res.json();
+                const data: SalesDataPoint[] = await res.json();
                 setSalesData(data);
             } catch (error) {
                 console.error(`Failed to fetch ${salesPeriod} sales data:`, error);
@@ -130,7 +172,8 @@ const DashboardPage = () => {
         fetchSalesData();
     }, [salesPeriod, API_BASE_URL]);
     
-    const getStatusInfo = (order) => {
+    // Type the 'order' parameter
+    const getStatusInfo = (order: RecentOrder) => {
         if (order.exchangeRequest && order.exchangeRequest.status) {
             const exchangeStatus = order.exchangeRequest.status.toUpperCase();
             switch (exchangeStatus) {
@@ -156,9 +199,11 @@ const DashboardPage = () => {
         { title: 'Completed Orders', value: stats?.completedOrders.count, icon: <CompletedOrdersIcon />, bgColor: 'bg-emerald-500' },
         { title: 'Exchanged order', value: stats?.exchangedOrders.count, icon: <ExchangedOrderIcon />, bgColor: 'bg-amber-500' }
     ];
-const handleOrderClick = (orderId) => {
+    
+    const handleOrderClick = (orderId: string) => {
         router.push(`/admin/orders/${orderId}`);
     };
+
     if (loading) return <div className="bg-[#1a1a1a] text-white min-h-screen flex items-center justify-center font-sans text-lg">Loading Dashboard Data...</div>
 
     return (
@@ -223,8 +268,8 @@ const handleOrderClick = (orderId) => {
                         <button className="text-gray-500 hover:text-white">...</button>
                     </div>
                     <div className="space-y-4">
-                        {bestSellers.map((item, index) => (
-                            <div key={index} className="flex items-center gap-4">
+                        {bestSellers.map((item) => (
+                            <div key={item.name} className="flex items-center gap-4">
                                 <img src={item.img} alt={item.name} className="w-10 h-10 rounded-md object-cover" />
                                 <div className="flex-grow">
                                     <p className="font-semibold text-gray-300">{item.name}</p>
@@ -250,6 +295,7 @@ const handleOrderClick = (orderId) => {
                     <table className="w-full text-left text-sm">
                         <thead className="text-gray-400 border-b border-gray-700">
                             <tr>
+                                <th className="p-4">#</th>
                                 <th className="p-4">Order ID</th>
                                 <th className="p-4">Date</th>
                                 <th className="p-4">Customer Name</th>
@@ -263,10 +309,10 @@ const handleOrderClick = (orderId) => {
                                 return (
                                     <tr 
                                         key={order._id} 
-                                        className="hover:bg-gray-800/50 cursor-pointer" /* */
-                                        onClick={() => handleOrderClick(order._id)} /* */
+                                        className="hover:bg-gray-800/50 cursor-pointer"
+                                        onClick={() => handleOrderClick(order._id)}
                                     >
-                                        <td className="p-4 text-gray-400">{index + 1}</td> {/* */}
+                                        <td className="p-4 text-gray-400">{index + 1}</td>
                                         <td className="p-4 text-gray-300 font-mono">{order._id}</td>
                                         <td className="p-4 text-gray-400">{new Date(order.createdAt).toLocaleDateString()}</td>
                                         <td className="p-4 text-gray-300">{order.user?.name || 'N/A'}</td>
@@ -298,4 +344,3 @@ const handleOrderClick = (orderId) => {
 };
 
 export default DashboardPage;
-
