@@ -98,10 +98,10 @@ const OrderDetailsPage = () => {
                     throw new Error('Failed to download bill. Server returned an unexpected response.');
                 }
             }
-            
+
             // CORRECT WAY: Get the PDF as a blob, not JSON
             const blob = await res.blob();
-            
+
             // Create a temporary link to download the blob
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -118,10 +118,10 @@ const OrderDetailsPage = () => {
             console.error(err);
         }
     };
-    
+
     // Calculate subtotal from order items
     const subtotal = order?.orderItems?.reduce((acc, item) => acc + (item.price * item.qty), 0) || 0;
-   
+
 
     if (loading) return <div className="p-10 text-center">Loading order details...</div>;
     if (error) return <div className="p-10 text-center text-red-500">Error: {error}</div>;
@@ -196,13 +196,14 @@ const OrderDetailsPage = () => {
                 </div>
 
                 {order.exchangeRequest && (
-                    <div className="bg-[#1C1C1C] p-4 rounded-lg border border-[#3A3A3A] col-span-1 md:col-span-2 lg:col-span-1">
-                        <h3 className="flex items-center text-gray-400 mb-2"><span className="mr-2">🔄</span> Exchange Request</h3>
-                        <div className='flex justify-between gap-4'>
-                            <div className="space-y-1 text-sm">
-                                <p className="text-gray-400">
-                                    Requested on: <span className="text-gray-200">{new Date(order.exchangeRequest.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                                </p>
+                    <div className="bg-[#1C1C1C] p-4 rounded-lg border border-[#3A3A3A] col-span-1 md:col-span-2">
+                        <div className='flex justify-between items-center mb-2'>
+                            <div>
+                            <h3 className="flex items-center text-gray-400 mb-2">
+                                <span className="mr-2">🔄</span> Exchange Request
+                            </h3>
+                            <div className="space-y-1 text-sm mb-4">
+                                {/* ... other details like status and reason ... */}
                                 <p className="text-gray-400">
                                     Status: <span className={`px-2 py-1 rounded-full text-xs font-semibold ${exchangeStatusInfo.className}`}>{exchangeStatusInfo.text}</span>
                                 </p>
@@ -210,19 +211,50 @@ const OrderDetailsPage = () => {
                                     Reason: <span className="text-gray-200">{order.exchangeRequest.reason}</span>
                                 </p>
                             </div>
-                            {order.exchangeRequest.imageUrl && (
-                                <div className="flex flex-col items-start">
-                                    <p className="text-gray-400 text-sm mb-2 font-semibold">Attached Image:</p>
-                                    <a href={order.exchangeRequest.imageUrl} target="_blank" rel="noopener noreferrer">
-                                        <Image src={order.exchangeRequest.imageUrl} alt="Exchange request attachment" width={100} height={100} className="rounded-md object-cover hover:opacity-80 transition-opacity" />
-                                    </a>
-                                </div>
-                            )}
                         </div>
+
+
+                        {/* ✅ CORRECTED LOGIC: 
+            This block now ONLY runs if order.exchangeRequest exists, preventing the error.
+        */}
+                        {order.exchangeRequest.imageUrls && order.exchangeRequest.imageUrls.length > 0 && (
+                            <div className="">
+                                <p className="text-gray-400 text-sm mb-2 text-end font-semibold">Attached Images</p>
+                                <div className="flex flex-wrap gap-3">
+                                    {order.exchangeRequest.imageUrls.map((url, index) => (
+                                        <a key={index} href={url} target="_blank" rel="noopener noreferrer" title="View full image">
+                                            <Image
+                                                src={url}
+                                                alt={`Exchange attachment ${index + 1}`}
+                                                width={100}
+                                                height={100}
+                                                className="rounded-md object-cover hover:opacity-80 transition-opacity"
+                                            />
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        </div>
+                        
+
+                        {/* ... Approve/Reject buttons ... */}
                         {order.exchangeRequest.status === 'Pending' && (
                             <div className="mt-4 pt-4 border-t border-[#3A3A3A] flex gap-2">
-                                <button onClick={() => handleStatusUpdate('Approved', order.exchangeRequest._id)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md text-xs font-semibold w-full">Approve</button>
-                                <button onClick={() => handleStatusUpdate('Rejected', order.exchangeRequest._id)} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-xs font-semibold w-full">Reject</button>
+                                <button onClick={() => handleStatusUpdate('Approved', order.exchangeRequest._id)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-3 rounded-md text-xs font-semibold w-full">Approve</button>
+                                <button onClick={() => handleStatusUpdate('Rejected', order.exchangeRequest._id)} className="bg-red-600 hover:bg-red-700 text-white px-3 py-3 rounded-md text-xs font-semibold w-full">Reject</button>
+                            </div>
+                        )}
+
+                        {/* This is the new button that appears only when the request is 'Approved' */}
+                        {order.exchangeRequest.status === 'Approved' && (
+                            <div className="mt-4 pt-4 border-t border-[#3A3A3A] flex gap-2">
+                                <button
+                                    onClick={() => handleStatusUpdate('Completed', order.exchangeRequest._id)}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-3 rounded-md text-xs font-semibold w-full"
+                                >
+                                    Mark as Exchange Delivered (Complete)
+                                </button>
                             </div>
                         )}
                     </div>
@@ -270,7 +302,7 @@ const OrderDetailsPage = () => {
                         </div>
                         <div className="flex justify-between">
                             <span className="text-gray-400 text-xs">Including Gst</span>
-                           
+
                         </div>
                         <div className="flex justify-between">
                             <span className="text-gray-400">Shipping</span>

@@ -40,7 +40,7 @@ export default function AdminLayout({ children }) {
         <div className="flex min-h-screen bg-[#1a1a1a] text-gray-300 font-sans">
             <Sidebar />
             <div className="flex-1 flex flex-col">
-                <Header /> {/* Add the Header component here */}
+                <Header />
                 <main className=" flex-1">
                     {children}
                 </main>

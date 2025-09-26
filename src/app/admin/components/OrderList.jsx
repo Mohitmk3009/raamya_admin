@@ -3,10 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // --- ICONS ---
-const ChevronRightIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="9 18 15 12 9 6"></polyline></svg> );
-const ChevronLeftIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="15 18 9 12 15 6"></polyline></svg> );
-const CustomCalendarIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> );
-const CustomChevronDownIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> );
+const ChevronRightIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="9 18 15 12 9 6"></polyline></svg>);
+const ChevronLeftIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="15 18 9 12 15 6"></polyline></svg>);
+const CustomCalendarIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
+const CustomChevronDownIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>);
 
 // --- MAIN COMPONENT ---
 const OrderList = ({ onOrderClick }) => {
@@ -24,6 +24,10 @@ const OrderList = ({ onOrderClick }) => {
             setLoading(true);
             setError(''); // Reset error on new fetch
             const token = localStorage.getItem('authToken');
+
+
+            // ✅ ADD THIS LINE TO DEBUG
+            console.log('Token being sent to API:', token);
             const params = new URLSearchParams({ pageNumber: currentPage });
             if (dateRange.startDate && dateRange.endDate) {
                 params.append('startDate', dateRange.startDate);
@@ -33,8 +37,10 @@ const OrderList = ({ onOrderClick }) => {
                 const res = await fetch(`${API_BASE_URL}/orders/all?${params.toString()}`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                 });
+                console.log('Fetch response status:', res.status); // Debug log
                 if (!res.ok) throw new Error('Failed to fetch orders. Please check if the server is running and the API endpoint is correct.');
                 const data = await res.json();
+                console.log('Fetch response data:', data); // Debug log
                 console.log('Fetched orders:', data.orders); // Debug log
                 setOrders(data.orders);
                 setCurrentPage(data.page);
@@ -47,27 +53,46 @@ const OrderList = ({ onOrderClick }) => {
         };
         fetchOrders();
     }, [currentPage, dateRange]);
-    
+
     // --- 👇 NEW: Helper function for status logic 👇 ---
-    const getStatus = (order) => {
-        if (order.hasExchangeRequest) {
-            return { text: 'Exchange Requested', className: 'bg-purple-500/20 text-purple-400' };
+    const getStatusInfo = (order) => {
+        console.log("🔎 Order ID:", order._id, "Exchange Request:", order.exchangeRequest);
+
+        if (order.exchangeRequest && order.exchangeRequest.status) {
+            console.log("✅ Found exchange status:", order.exchangeRequest.status);
+            const exchangeStatus = order?.exchangeRequest?.status.toUpperCase();
+
+            switch (exchangeStatus) {
+                case 'PENDING':
+                    return { text: 'Exchange Pending', className: 'bg-gray-500/20 text-gray-400' };
+                case 'APPROVED':
+                    return { text: 'Exchange Approved', className: 'bg-green-500/20 text-green-400' };
+                case 'REJECTED':
+                    return { text: 'Exchange Rejected', className: 'bg-red-500/20 text-red-400' };
+                case 'COMPLETED':
+                    return { text: 'Exchange Completed', className: 'bg-blue-500/20 text-blue-400' };
+                default:
+                    return { text: `Exchange: ${exchangeStatus}`, className: 'bg-purple-500/20 text-purple-400' };
+            }
         }
+
+        console.log(`❌ No exchange request. Falling back to main status: "${order.status}"`);
+
+        // fallback
         switch (order.status) {
             case 'Cancelled': return { text: 'Cancelled', className: 'bg-red-500/20 text-red-400' };
             case 'Delivered': return { text: 'Delivered', className: 'bg-green-500/20 text-green-400' };
             case 'Shipped': return { text: 'Shipped', className: 'bg-blue-500/20 text-blue-400' };
-            case 'Processing':
-            default:
-                return { text: 'Processing', className: 'bg-yellow-500/20 text-yellow-400' };
+            default: return { text: 'Processing', className: 'bg-yellow-500/20 text-yellow-400' };
         }
     };
 
+    console.log(orders);
     const handleFilterApply = () => {
         setCurrentPage(1);
         setShowCalendar(false);
     };
-    
+
     const resetFilters = () => {
         setDateRange({ startDate: '', endDate: '' });
         setCurrentPage(1);
@@ -80,7 +105,7 @@ const OrderList = ({ onOrderClick }) => {
     return (
         <div className="bg-[#121212] min-h-screen text-white p-6 md:p-10 font-sans">
             <header className="flex justify-between items-center mb-6">
-                <div><h1 className="text-xl md:text-2xl font-bold">Orders List</h1><p className="text-gray-400 text-sm">Home &gt; Order List</p></div>
+                <div><h1 className="text-xl md:text-2xl font-bold">Orders </h1><p className="text-gray-400 text-sm">Home &gt; Order List</p></div>
                 <div className="flex items-center space-x-2 relative">
                     <button onClick={() => setShowCalendar(!showCalendar)} className="flex items-center bg-[#252525] p-2 rounded-md border border-[#3A3A3A] text-sm"><CustomCalendarIcon /><span className="ml-2">Filter by Date</span><CustomChevronDownIcon /></button>
                     {showCalendar && (
@@ -110,21 +135,22 @@ const OrderList = ({ onOrderClick }) => {
                         </thead>
                         <tbody>
                             {orders.map((order) => {
-                                const status = getStatus(order); // --- 👈 Use the helper function
+                                const status = getStatusInfo(order); // --- 👈 Use the helper function
                                 return (
-                                <tr key={order._id} className="cursor-pointer hover:bg-[#2C2C2C]" onClick={() => onOrderClick(order._id)}>
-                                    <td className="py-4 px-2 text-sm">{order._id}</td>
-                                    <td className="py-4 px-2 text-sm">{new Date(order.createdAt).toLocaleDateString()}</td>
-                                    <td className="py-4 px-2 text-sm">{order.user?.name || 'N/A'}</td>
-                                    <td className="py-4 px-2 text-sm">
-                                        {/* --- 👇 UPDATED STATUS DISPLAY 👇 --- */}
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status.className}`}>
-                                            {status.text}
-                                        </span>
-                                    </td>
-                                    <td className="py-4 px-2 text-sm">₹{(order.totalPrice || 0).toLocaleString()}</td>
-                                </tr>
-                            )})}
+                                    <tr key={order._id} className="cursor-pointer hover:bg-[#2C2C2C]" onClick={() => onOrderClick(order._id)}>
+                                        <td className="py-4 px-2 text-sm">{order._id}</td>
+                                        <td className="py-4 px-2 text-sm">{new Date(order.createdAt).toLocaleDateString()}</td>
+                                        <td className="py-4 px-2 text-sm">{order.user?.name || 'N/A'}</td>
+                                        <td className="py-4 px-2 text-sm">
+                                            {/* --- 👇 UPDATED STATUS DISPLAY 👇 --- */}
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status.className}`}>
+                                                {status.text}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-2 text-sm">₹{(order.totalPrice || 0).toLocaleString()}</td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>

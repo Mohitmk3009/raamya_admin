@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // --- ICONS ---
-const ChevronRightIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="9 18 15 12 9 6"></polyline></svg> );
-const ChevronLeftIcon = (props) => ( <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="15 18 9 12 15 6"></polyline></svg> );
-const CustomCalendarIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> );
-const CustomChevronDownIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg> );
+const ChevronRightIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="9 18 15 12 9 6"></polyline></svg>);
+const ChevronLeftIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="15 18 9 12 15 6"></polyline></svg>);
+const CustomCalendarIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
+const CustomChevronDownIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>);
 
 // --- MAIN PAGE COMPONENT ---
 export default function OrderListPage() {
@@ -18,9 +18,24 @@ export default function OrderListPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
     const [showCalendar, setShowCalendar] = useState(false);
-    const [statusFilter, setStatusFilter] = useState('All'); // 👈 New state for status filter
+    const [statusFilter, setStatusFilter] = useState('All');
+    // --- 👇 NEW: State for search functionality 👇 ---
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const calendarRef = useRef(null);
     const router = useRouter();
+
+    // --- 👇 NEW: useEffect for debouncing search input 👇 ---
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+            setCurrentPage(1); // Reset to page 1 on new search
+        }, 500); // Wait 500ms after user stops typing
+
+        return () => {
+            clearTimeout(handler); // Cleanup timeout on component unmount or query change
+        };
+    }, [searchQuery]);
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -33,9 +48,12 @@ export default function OrderListPage() {
                 params.append('startDate', new Date(dateRange.startDate).toISOString());
                 params.append('endDate', new Date(dateRange.endDate).toISOString());
             }
-            // Append status filter if not 'All'
             if (statusFilter !== 'All') {
                 params.append('status', statusFilter);
+            }
+            // --- 👇 NEW: Append search query if it exists 👇 ---
+            if (debouncedSearchQuery) {
+                params.append('search', debouncedSearchQuery);
             }
 
             try {
@@ -54,7 +72,7 @@ export default function OrderListPage() {
             }
         };
         fetchOrders();
-    }, [currentPage, dateRange, statusFilter]); // 👈 Add statusFilter to dependency array
+    }, [currentPage, dateRange, statusFilter, debouncedSearchQuery]); // 👈 Add debouncedSearchQuery to dependency array
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -66,10 +84,30 @@ export default function OrderListPage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showCalendar]);
 
-    const getStatus = (order) => {
-        if (order.hasExchangeRequest) {
-            return { text: 'Exchange Requested', className: 'bg-purple-500/20 text-purple-400' };
+   const getStatusInfo = (order) => {
+        console.log("🔎 Order ID:", order._id, "Exchange Request:", order.exchangeRequest);
+
+        if (order.exchangeRequest && order.exchangeRequest.status) {
+            console.log("✅ Found exchange status:", order.exchangeRequest.status);
+            const exchangeStatus = order?.exchangeRequest?.status.toUpperCase();
+
+            switch (exchangeStatus) {
+                case 'PENDING':
+                    return { text: 'Exchange Pending', className: 'bg-gray-500/20 text-gray-400' };
+                case 'APPROVED':
+                    return { text: 'Exchange Approved', className: 'bg-green-500/20 text-green-400' };
+                case 'REJECTED':
+                    return { text: 'Exchange Rejected', className: 'bg-red-500/20 text-red-400' };
+                case 'COMPLETED':
+                    return { text: 'Exchange Completed', className: 'bg-blue-500/20 text-blue-400' };
+                default:
+                    return { text: `Exchange: ${exchangeStatus}`, className: 'bg-purple-500/20 text-purple-400' };
+            }
         }
+
+        console.log(`❌ No exchange request. Falling back to main status: "${order.status}"`);
+
+        // fallback
         switch (order.status) {
             case 'Cancelled': return { text: 'Cancelled', className: 'bg-red-500/20 text-red-400' };
             case 'Delivered': return { text: 'Delivered', className: 'bg-green-500/20 text-green-400' };
@@ -80,7 +118,7 @@ export default function OrderListPage() {
 
     const handleStatusChange = (e) => {
         setStatusFilter(e.target.value);
-        setCurrentPage(1); // Reset to page 1 when filter changes
+        setCurrentPage(1);
     };
 
     const handleFilterApply = () => {
@@ -90,7 +128,8 @@ export default function OrderListPage() {
 
     const resetFilters = () => {
         setDateRange({ startDate: '', endDate: '' });
-        setStatusFilter('All'); // 👈 Reset status filter as well
+        setStatusFilter('All');
+        setSearchQuery(''); // 👈 Reset search query
         setCurrentPage(1);
     };
 
@@ -110,7 +149,15 @@ export default function OrderListPage() {
                 </div>
 
                 <div className="flex items-center space-x-2 mt-4 md:mt-0">
-                    {/* --- 👇 NEW: Status Filter Dropdown 👇 --- */}
+                    {/* --- 👇 NEW: Search Input Bar 👇 --- */}
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by ID or Name..."
+                        className="bg-[#252525] p-2 rounded-md border border-[#3A3A3A] text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FF9900] w-48"
+                    />
+
                     <select
                         value={statusFilter}
                         onChange={handleStatusChange}
@@ -137,7 +184,7 @@ export default function OrderListPage() {
                                     <label className="text-sm">Start Date</label>
                                     <input type="date" className="bg-[#1C1C1C] p-2 rounded" value={dateRange.startDate} onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} />
                                     <label className="text-sm">End Date</label>
-                                    <input type="date" className="bg-[#1C1C1C] p-2 rounded" value={dateRange.endDate} onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} />
+                                    _                      <input type="date" className="bg-[#1C1C1C] p-2 rounded" value={dateRange.endDate} onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} />
                                     <button onClick={handleFilterApply} className="bg-[#FF9900] text-black px-4 py-2 rounded-md text-sm font-semibold mt-2">Apply</button>
                                 </div>
                             </div>
@@ -162,7 +209,7 @@ export default function OrderListPage() {
                         </thead>
                         <tbody>
                             {orders.map((order, index) => {
-                                const status = getStatus(order);
+                                const status = getStatusInfo(order);
                                 return (
                                     <tr key={order._id} className="cursor-pointer hover:bg-[#2C2C2C]" onClick={() => handleOrderClick(order._id)}>
                                         <td className="py-4 px-2 text-sm">{(currentPage - 1) * 10 + index + 1}</td>
@@ -170,11 +217,10 @@ export default function OrderListPage() {
                                         <td className="py-4 px-2 text-sm">{new Date(order.createdAt).toLocaleDateString()}</td>
                                         <td className="py-4 px-2 text-sm">{order.user?.name || 'User not found'}</td>
                                         <td className="py-4 px-2 text-sm">
-                                        {/* --- 👇 UPDATED STATUS DISPLAY 👇 --- */}
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status.className}`}>
-                                            {status.text}
-                                        </span>
-                                    </td>
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status.className}`}>
+                                                {status.text}
+                                            </span>
+                                        </td>
                                         <td className="py-4 px-2 text-sm">₹{(order.totalPrice || 0).toLocaleString()}</td>
                                     </tr>
                                 );
