@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { TooltipProps } from 'recharts'; // Import types from recharts
 import { useRouter } from 'next/navigation';
-import type { Payload } from 'recharts';
+
 // --- Type Definitions for API Data and Component Props ---
 interface SalesDataPoint {
     name: string;
