@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { TooltipProps } from 'recharts'; // Import types from recharts
 import { useRouter } from 'next/navigation';
-
+import type { Payload } from 'recharts';
 // --- Type Definitions for API Data and Component Props ---
 interface SalesDataPoint {
     name: string;
@@ -69,13 +69,19 @@ interface SalesChartProps {
     data: SalesDataPoint[];
 }
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Payload<number, string>[];
+  label?: string;
+}
 const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
-    // Correctly type the props for the custom tooltip component
-    const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+    // Apply the correct interface here
+    const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
         if (active && payload && payload.length) {
             return (
                 <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm">
                     <p className="label text-white font-bold">{`${label}`}</p>
+                    {/* Add optional chaining to prevent runtime errors if value is missing */}
                     <p className="intro text-[#EFAF00]">{`Sales : ₹${payload[0].value?.toLocaleString()}`}</p>
                 </div>
             );
@@ -90,6 +96,7 @@ const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
                     <XAxis dataKey="name" stroke="#A0AEC0" tick={{ fill: '#A0AEC0', fontSize: 12 }} />
                     <YAxis stroke="#A0AEC0" tick={{ fill: '#A0AEC0', fontSize: 12 }} tickFormatter={(value) => `₹${value}`} />
+                    {/* The 'content' prop correctly passes the object to your typed component */}
                     <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#EFAF00', strokeWidth: 1, strokeDasharray: '3 3' }} />
                     <Legend wrapperStyle={{ fontSize: '14px' }} />
                     <Line type="monotone" dataKey="sales" stroke="#EFAF00" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} name="Sales" />
