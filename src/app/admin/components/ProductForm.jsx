@@ -295,6 +295,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
@@ -305,7 +306,7 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
         description: '',
         category: 'IT girl',
         price: '',
-        variants: [{ size: 'S', stock: '' }],
+        variants: [{ size: 'XS', stock: '' }],
         images: [''],
         isNewArrival: false,
         isMostWanted: false,
@@ -349,11 +350,11 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
                 category: initialProduct.category || 'IT girl',
                 variants: initialProduct.variants?.length > 0
                     ? initialProduct.variants.map(v => ({
-                        size: v.size || 'S',
+                        size: v.size || 'XS',
                         stock: v.stock?.toString() || '0',
                         sku: v.sku || '' // preserve sku
                     }))
-                    : [{ size: 'S', stock: '', sku: '' }],
+                    : [{ size: 'XS', stock: '', sku: '' }],
                 images: initialProduct.images?.length > 0 ? initialProduct.images : [''],
                 isNewArrival: !!initialProduct.isNewArrival,
                 isMostWanted: !!initialProduct.isMostWanted,
@@ -372,7 +373,7 @@ const ProductForm = ({ onSubmit, initialProduct = null, isUpdate = false }) => {
         newVariants[index][e.target.name] = e.target.value;
         setFormData(prev => ({ ...prev, variants: newVariants }));
     };
-    const addVariant = () => setFormData(prev => ({ ...prev, variants: [...prev.variants, { size: 'M', stock: '' }] }));
+    const addVariant = () => setFormData(prev => ({ ...prev, variants: [...prev.variants, { size: 'S', stock: '' }] }));
     const removeVariant = (index) => setFormData(prev => ({ ...prev, variants: prev.variants.filter((_, i) => i !== index) }));
 
     const handleImageChange = (index, e) => {
