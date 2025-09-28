@@ -184,8 +184,8 @@ const OrderDetailsPage = () => {
 
                 <div className="bg-[#1C1C1C] p-4 rounded-lg border border-[#3A3A3A]">
                     <h3 className="flex items-center text-gray-400 mb-2"><span className="mr-2">🏠</span> Deliver to</h3>
-                    <p className="text-gray-200 font-semibold">{`${order.shippingAddress.address}, ${order.shippingAddress.city}`}</p>
-                    <p className="text-gray-400 text-sm">{`${order.shippingAddress.state} - ${order.shippingAddress.postalCode}`}</p>
+                    <p className="text-gray-200 font-semibold">{`${order.shippingAddress.address}, ${order.shippingAddress.city} - ${order.shippingAddress.postalCode}`}</p>
+                    
                 </div>
 
                 <div className="bg-[#1C1C1C] p-4 rounded-lg border border-[#3A3A3A]">
